@@ -4,6 +4,14 @@ const { admin, db } = require('./firebase');
 const bodyParser = require('body-parser');
 const axios = require('axios');
 const cors = require('cors');
+const dotenv = require("dotenv")
+const nodemailer = require("nodemailer");
+const moment = require("moment")
+const cron = require("node-cron")
+const schedule = require('node-schedule');
+
+
+dotenv.config()
 // const serviceAccount = require('./serviceAccountKey.json');
 
 const getCurrentMatchday = require('./getCurrentMatchday');
@@ -42,6 +50,191 @@ const { cronJob } = require('./jobLogic');
 // });
 
 // const db = admin.firestore();
+
+const transporter = nodemailer.createTransport({
+    service: "Gmail", // Use your email service provider
+    auth: {
+      user: process.env.EMAIL,
+      pass: process.env.EMAIL_PASSWORD,
+    },
+  });
+
+
+    // Function to send emails
+    const sendMatchEmail = (userEmail, match, name) => {
+        const mailOptions = {
+          from: process.env.EMAIL_USER,
+          to: userEmail,
+          subject: `Match Reminder: ${match.teams}`,
+          html: `
+                    <html lang="en-US">
+                <head>
+                    <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+                    <title>Match Reminder</title>
+                    <style type="text/css">
+                    a:hover {
+                        text-decoration: underline !important
+                    }
+                    </style>
+                </head>
+                <body margin="0" marginwidth="0" style="background-color:#f2f3f8">
+                    <table cellspacing="0" border="0" cellpadding="0" width="100%" bgcolor="#f2f3f8" style="@import url(https://fonts.googleapis.com/css?family=Rubik:300,400,500,700|Open+Sans:300,400,600,700);font-family:'Open Sans',sans-serif">
+                        <tr>
+                            <td>
+                                <table style="background-color:#f8fafc;max-width:1200px;margin:0 auto;margin-top:5px" width="100%" border="0" align="center" cellpadding="0" cellspacing="0">
+                                    
+                                    <tr>
+                                        <td style="height:30px">&nbsp;</td>
+                                    </tr>
+                            <tr>
+                            <td>
+                                <table width="95%" border="0" align="center" cellpadding="0" cellspacing="0" style="max-width:670px;background:#fff;border-radius:3px;text-align:left;-webkit-box-shadow:0 6px 18px 0 rgba(0,0,0,.06);-moz-box-shadow:0 6px 18px 0 rgba(0,0,0,.06);box-shadow:0 6px 18px 0 rgba(0,0,0,.06)">
+                                <tr>
+                                    <td style="height:40px">&nbsp;</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:0 35px">
+                                    <p style="color:#18181b;font-size:15px;line-height:24px;margin:0;margin-bottom:20px">Hi ${name},</p>
+                                    <p style="color:#18181b;font-size:15px;line-height:24px;margin:0;margin-bottom:20px">This is a reminder for the match between <strong>${match.teams}</strong> on <strong>${match.matchDate}</strong>. Don't forget to make your selections before the matchweek locks!</p>
+                                    <p style="color:#18181b;font-size:15px;line-height:24px;margin:0;margin-bottom:20px">To make your selections, please log in to your account using the button below:</p>
+                                    <div style="text-align:center;">
+                                    <a href="${process.env.FRONT_END_WEBSITE_URL}" style="background:#5460f3;text-decoration:none!important;display:inline-block;font-weight:600;margin-top:10px;color:#fff !important;text-transform:uppercase;font-size:18px;padding:15px 60px;display:inline-block;border-radius:50px;margin-bottom:25px;text-align:center;cursor:pointer;">Login </a>
+                                    </div>
+                                    <p style="color:#18181b;font-size:15px;line-height:24px;margin:0">Best regards,</p>
+                                    <p style="color:#18181b;font-size:15px;line-height:24px;margin:0">The Survivorleague Team</p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="height:40px">&nbsp;</td>
+                                </tr>
+                                </table>
+                            </td>
+                            <tr>
+                            <td style="height:30px">&nbsp;</td>
+                            </tr>
+                        </table>
+                        </td>
+                    </tr>
+                    </table>
+                </body>
+                </html>
+  `,
+        };
+      
+        transporter.sendMail(mailOptions, (error, info) => {
+          if (error) {
+            console.error("Error sending email:", error);
+          } else {
+            console.log('Email sent: ' + info.response);
+          }
+        });
+      };
+
+  // Function to fetch current matchday
+  const fetchMatchesByDate = async (date) => {
+    try {
+        const response = await axios.get("https://api.football-data.org/v4/matches", {
+            headers: {
+                "X-Auth-Token": process.env.FOOTBALL_DATA_API_KEY,
+            },
+            params: {
+                date: date,
+            },
+        });
+
+        const formattedMatches = response.data.matches.map(match => ({
+            id: match.id,
+            matchDate: moment(match.utcDate).format("DD-MM-YYYY hh:mm A"),
+            status: match.status,
+            teams: `${match.homeTeam.name} v/s ${match.awayTeam.name}`,
+            utcDate: match.utcDate,
+        }));
+       
+        return formattedMatches;
+    } catch (error) {
+        console.error("Error fetching matches for date:", error.message);
+        return [];
+    }
+};
+
+// Schedule reminders for matches
+const scheduleReminders = async (matches, users) => {
+    matches.forEach(match => {
+        const reminderTime = moment(match.utcDate).subtract(24, 'hours');
+
+        // Check if reminder time is in the future
+        if (reminderTime.isAfter(moment())) {
+            schedule.scheduleJob(reminderTime.toDate(), () => {
+                users.forEach(user => {
+                    sendMatchEmail(user.email, match, user.userName);
+                });
+                console.log(`Reminder sent for match: ${match.teams}`);
+            });
+
+            console.log(`Scheduled reminder for match: ${match.teams} at ${reminderTime.toDate()}`);
+        } else {
+            console.log(`Reminder time for match: ${match.teams} is in the past, not scheduling.`);
+        }
+    });
+};
+
+
+
+// Fetch users with valid leagues
+const fetchUsersWithLives = async () => {
+    const usersCollection = await db.collection("usernames").get();
+
+    const users = await Promise.all(usersCollection.docs.map(async (doc) => {
+        const userId = doc.id;
+        const userData = doc.data();
+
+        const leaguesCollection = await db.collection(`users/${userId}/leagues`).get();
+        const leagues = leaguesCollection.docs.map(leagueDoc => leagueDoc.data());
+
+        const hasLives = leagues.some(league => league.lives > 0);
+        return hasLives ? { id: userId, email: userData.email, userName: userData.username } : null;
+    }));
+
+    return users.filter(user => user !== null);
+
+};
+
+
+const scheduleRemindersForNextDay = async () => {
+    try {
+        const currentDate = moment();
+        const nextDayDate = currentDate.add(1, 'day').format("YYYY-MM-DD");
+
+        const matches = await fetchMatchesByDate(nextDayDate);
+        
+        if (matches.length === 0) {
+            console.log("No matches to send reminders to.");
+            return;
+        }
+        const users = await fetchUsersWithLives();
+        if (users.length === 0) {
+            console.log("No users to send reminders to.");
+            return;
+        }
+
+        await scheduleReminders(matches, users);
+        console.log("Reminders scheduled successfully for matches on", nextDayDate);
+    } catch (error) {
+        console.error("Error scheduling reminders:", error);
+    }
+};
+
+// Schedule the function to run every day at 00:01
+cron.schedule('1 0 * * *', async () => {
+    console.log("Running scheduled reminders task...");
+    await scheduleRemindersForNextDay();
+});
+
+// Automatically invoke this function when the server restarts to ensure any previously scheduled mails 
+// are rescheduled for the next day. This helps maintain consistency and avoids missing any scheduled reminders.
+scheduleRemindersForNextDay();
+
+  
 
 app.use(cors());
 app.use(bodyParser.json());
