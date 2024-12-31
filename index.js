@@ -16,6 +16,7 @@ dotenv.config()
 
 const getCurrentMatchday = require('./getCurrentMatchday');
 const getMatchdayResults = require('./getMatchdayResults');
+const { cronJob } = require('./jobLogic');
 
 // set up express app
 const app = express();
@@ -25,17 +26,15 @@ const port = process.env.PORT || 8080;
 // const cron = require('node-cron');
 // // cronJob function is imported from jobLogic.js
 // const { cronJob } = require('./jobLogic');
-// /**
-//  * Schedule the cron job to run every day at midnight. We are checking to see if the matchday has changed.
-//  * If it has, then we want to fetch the match results for the new matchday. Regardless, we want to update
-//  * the user's lives according to the match results and their predictions.
-//  */
-// // cron.schedule('0 0 * * *', cronJob);
+ /** * Schedule the cron job to run every day at midnight. We are checking to see if the matchday has changed.
+ * If it has, then we want to fetch the match results for the new matchday. Regardless, we want to update
+ * the user's lives according to the match results and their predictions.
+ */
+cron.schedule('0 0 * * *', cronJob);
 // // Run the cron job every minute for testing purposes
 // cron.schedule('* * * * *', cronJob);
 
 // Logic for Google Cloud Scheduler
-const { cronJob } = require('./jobLogic');
 // exports.scheduledCronJob = async (req, res) => {
 //     try {
 //         await cronJob();
