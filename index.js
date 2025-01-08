@@ -165,7 +165,7 @@ const scheduleReminders = async (matches, users) => {
         if (reminderTime.isAfter(moment())) {
             schedule.scheduleJob(reminderTime.toDate(), () => {
                 users.forEach(user => {
-                    sendMatchEmail(user.email, match, user.userName);
+                    // sendMatchEmail(user.email, match, user.userName);
                 });
                 console.log(`Reminder sent for match: ${match.teams}`);
             });
