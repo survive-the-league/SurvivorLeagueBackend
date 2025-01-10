@@ -6,7 +6,7 @@ const axios = require('axios');
 const cors = require('cors');
 const dotenv = require("dotenv")
 const nodemailer = require("nodemailer");
-const moment = require("moment")
+const moment = require('moment-timezone');
 const cron = require("node-cron")
 const schedule = require('node-schedule');
 
@@ -60,11 +60,11 @@ const transporter = nodemailer.createTransport({
 
 
     // Function to send emails
-    const sendMatchEmail = (userEmail, match, name) => {
+    const sendMatchEmail = (userEmail, match, name, matchDay) => {
         const mailOptions = {
           from: process.env.EMAIL_USER,
           to: userEmail,
-          subject: `Match Reminder: ${match.teams}`,
+          subject: `Match Reminder for ${matchDay} `,
           html: `
                     <html lang="en-US">
                 <head>
@@ -94,7 +94,7 @@ const transporter = nodemailer.createTransport({
                                 <tr>
                                     <td style="padding:0 35px">
                                     <p style="color:#18181b;font-size:15px;line-height:24px;margin:0;margin-bottom:20px">Hi ${name},</p>
-                                    <p style="color:#18181b;font-size:15px;line-height:24px;margin:0;margin-bottom:20px">This is a reminder for the match between <strong>${match.teams}</strong> on <strong>${match.matchDate}</strong>. Don't forget to make your selections before the matchweek locks!</p>
+                                    <p style="color:#18181b;font-size:15px;line-height:24px;margin:0;margin-bottom:20px">The deadline to make a selection for Matchweek <strong>${matchDay}</strong> is tomorrow at <strong>${moment(match.firstMatch).tz('America/New_York')}</strong>. don't forget to make your pick.</p>
                                     <p style="color:#18181b;font-size:15px;line-height:24px;margin:0;margin-bottom:20px">To make your selections, please log in to your account using the button below:</p>
                                     <div style="text-align:center;">
                                     <a href="${process.env.FRONT_END_WEBSITE_URL}" style="background:#5460f3;text-decoration:none!important;display:inline-block;font-weight:600;margin-top:10px;color:#fff !important;text-transform:uppercase;font-size:18px;padding:15px 60px;display:inline-block;border-radius:50px;margin-bottom:25px;text-align:center;cursor:pointer;">Login </a>
@@ -130,52 +130,63 @@ const transporter = nodemailer.createTransport({
       };
 
   // Function to fetch current matchday
-  const fetchMatchesByDate = async (date) => {
+  const fetchMatchesByDate = async (matchday) => {
     try {
-        const response = await axios.get("https://api.football-data.org/v4/matches", {
+        const response = await axios.get(`https://api.football-data.org/v4/competitions/PL/matches`, {
             headers: {
                 "X-Auth-Token": process.env.FOOTBALL_DATA_API_KEY,
             },
             params: {
-                date: date,
+                matchday: matchday,
             },
         });
 
-        const formattedMatches = response.data.matches.map(match => ({
-            id: match.id,
-            matchDate: moment(match.utcDate).format("DD-MM-YYYY hh:mm A"),
-            status: match.status,
-            teams: `${match.homeTeam.name} v/s ${match.awayTeam.name}`,
-            utcDate: match.utcDate,
-        }));
-       
-        return formattedMatches;
+        const { resultSet, matches } = response.data;
+
+        const filteredResponse = {
+            startDate: resultSet.first,
+            endDate: resultSet.last,
+            firstMatch: matches.length > 0 ? matches[0].utcDate : null, // Only include the first match if it exists
+        };
+
+        return filteredResponse;
     } catch (error) {
         console.error("Error fetching matches for date:", error.message);
         return [];
     }
 };
 
-// Schedule reminders for matches
-const scheduleReminders = async (matches, users) => {
-    matches.forEach(match => {
-        const reminderTime = moment(match.utcDate).subtract(24, 'hours');
 
+
+const scheduleReminders = async (matchData, users, matchDay) => {
+    const { startDate, firstMatch } = matchData;
+
+    // Get the current date and add one day in EST
+    const currentDatePlusOne = moment().tz('America/New_York').add(1, 'days').format('YYYY-MM-DD');
+    // Check if currentDate + 1 matches startDate
+    if (currentDatePlusOne === startDate) {
+        // Calculate the reminder time (24 hours before firstMatch) in EST
+        const reminderTime = moment(firstMatch).tz('America/New_York').subtract(24, 'hours');
         // Check if reminder time is in the future
-        if (reminderTime.isAfter(moment())) {
+        if (reminderTime.isAfter(moment().tz('America/New_York'))) {
+            // Schedule the job
             schedule.scheduleJob(reminderTime.toDate(), () => {
                 users.forEach(user => {
-                    // sendMatchEmail(user.email, match, user.userName);
+                    // Uncomment the following line to send the email
+                    sendMatchEmail(user.email, matchData, user.userName, matchDay);
                 });
-                console.log(`Reminder sent for match: ${match.teams}`);
             });
-
-            console.log(`Scheduled reminder for match: ${match.teams} at ${reminderTime.toDate()}`);
         } else {
-            console.log(`Reminder time for match: ${match.teams} is in the past, not scheduling.`);
+            console.log("Reminder time is in the past. Cannot schedule.");
         }
-    });
+    } else {
+        console.log("Condition not met: currentDate + 1 does not match startDate. No reminders scheduled.");
+    }
 };
+
+
+
+
 
 
 
@@ -201,23 +212,15 @@ const fetchUsersWithLives = async () => {
 
 const scheduleRemindersForNextDay = async () => {
     try {
-        const currentDate = moment();
-        const nextDayDate = currentDate.add(1, 'day').format("YYYY-MM-DD");
-
-        const matches = await fetchMatchesByDate(nextDayDate);
-        
-        if (matches.length === 0) {
-            console.log("No matches to send reminders to.");
-            return;
-        }
+        const currentMatchday = await getCurrentMatchday();
+        const matches = await fetchMatchesByDate(currentMatchday + 1 );
         const users = await fetchUsersWithLives();
         if (users.length === 0) {
             console.log("No users to send reminders to.");
             return;
         }
 
-        await scheduleReminders(matches, users);
-        console.log("Reminders scheduled successfully for matches on", nextDayDate);
+        await scheduleReminders(matches, users, currentMatchday + 1);
     } catch (error) {
         console.error("Error scheduling reminders:", error);
     }
