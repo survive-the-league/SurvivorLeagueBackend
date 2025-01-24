@@ -9,20 +9,6 @@ const { db, admin } = require('./firebase');
  */
 const assignRandomPrediction = async (userId, leagueId, matchday) => {
 
-
-    const userLivesSnapshot = await db.collection('users')
-        .doc(userId)
-        .collection('leagues')
-        .doc(leagueId)
-        .get();
-
-        const userLivesData = userLivesSnapshot.data();
-
-        if (userLivesData.lives <= 0) {
-            console.log('User has no lives remaining, prediction not assigned');
-            return;
-        }
-
     // Fetch all matches for the given matchday
     const matchesSnapshot = await db.collection('matches')
         .where('matchday', '==', matchday)

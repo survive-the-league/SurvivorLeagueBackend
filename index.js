@@ -31,6 +31,7 @@ const port = process.env.PORT || 8080;
  * the user's lives according to the match results and their predictions.
  */
 cron.schedule('0 0 * * *', cronJob);
+// cron.schedule('*/20 * * * * *', cronJob);
 // // Run the cron job every minute for testing purposes
 // cron.schedule('* * * * *', cronJob);
 
@@ -293,6 +294,7 @@ const saveMatchResults = async (matchResults) => {
             utcDate: match.utcDate,
             matchday: match.matchday,
             winner: match.score.winner,
+            status: match.status,
             timestamp: admin.firestore.FieldValue.serverTimestamp()
         });
     }
@@ -306,7 +308,7 @@ app.get('/fetchMatchdayResults/:matchday', async (req, res) => {
     try {
         const matchResults = await getMatchdayResults(matchday);
         await saveMatchResults(matchResults);
-        res.status(200).send('Matchday results successfully saved');
+        res.status(200).json(matchResults);
     } catch (error) {
         res.status(500).send('Error fetching matchday results: ' + error.message);
     }

@@ -24,6 +24,7 @@ const updateUserLives = async (matchday) => {
                 // Check if the user document exists in Firestore
                 const userLeagueRef = db.collection('users').doc(userId).collection('leagues').doc(leagueId);
                 let userLeagueSnapshot = await userLeagueRef.get();
+               
 
                 // If the user document does not exist, create it with default 3 lives
                 if (!userLeagueSnapshot.exists) {
@@ -32,12 +33,20 @@ const updateUserLives = async (matchday) => {
                     userLeagueSnapshot = await userLeagueRef.get();
                 }
 
+                const userLeagueData = userLeagueSnapshot.data();
+
+                // Check if the user's lives are 0 or less
+                if (userLeagueData.lives <= 0) {
+                    console.log(`User ${userId} has no lives left. Skipping predictions.`);
+                    continue;
+                }
+
                 // Fetch the user's prediction for the current matchday
                 const predictionsSnapshot = await db.collection('predictions')
-                    .where('userId', '==', userId)
-                    .where('leagueId', '==', leagueId)
-                    .where('matchday', '==', matchday)
-                    .get();
+                .where('userId', '==', userId)
+                .where('leagueId', '==', leagueId)
+                .where('matchday', '==', matchday)
+                .get();
                 
                 let predictionData;
                 let predictionDocRef;
