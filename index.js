@@ -161,15 +161,12 @@ const transporter = nodemailer.createTransport({
 
 const scheduleReminders = async (matchData, users, matchDay) => {
     const { startDate, firstMatch } = matchData;
-
     // Get the current date and add one day in EST
     const currentDatePlusOne = moment().tz('America/New_York').add(1, 'days').format('YYYY-MM-DD');
     // Check if currentDate + 1 matches startDate
     if (currentDatePlusOne === startDate) {
         // Calculate the reminder time (24 hours before firstMatch) in EST
-        const reminderTime = moment(firstMatch).tz('America/New_York').subtract(24, 'hours');
-        // Check if reminder time is in the future
-        if (reminderTime.isAfter(moment().tz('America/New_York'))) {
+        const reminderTime = moment(firstMatch).tz('America/New_York').subtract(1, 'days');
             // Schedule the job
             schedule.scheduleJob(reminderTime.toDate(), () => {
                 users.forEach(user => {
@@ -177,9 +174,6 @@ const scheduleReminders = async (matchData, users, matchDay) => {
                     sendMatchEmail(user.email, matchData, user.userName, matchDay);
                 });
             });
-        } else {
-            console.log("Reminder time is in the past. Cannot schedule.");
-        }
     } else {
         console.log("Condition not met: currentDate + 1 does not match startDate. No reminders scheduled.");
     }
