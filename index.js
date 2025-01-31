@@ -161,23 +161,51 @@ const transporter = nodemailer.createTransport({
 
 const scheduleReminders = async (matchData, users, matchDay) => {
     const { startDate, firstMatch } = matchData;
+    
     // Get the current date and add one day in EST
     const currentDatePlusOne = moment().tz('America/New_York').add(1, 'days').format('YYYY-MM-DD');
+    
     // Check if currentDate + 1 matches startDate
     if (currentDatePlusOne === startDate) {
+        console.log("Condition met: currentDate + 1 matches startDate.");
+        
         // Calculate the reminder time (24 hours before firstMatch) in EST
         const reminderTime = moment(firstMatch).tz('America/New_York').subtract(1, 'days');
+        
+        try {
+            // Check if reminderTime is valid
+            if (!reminderTime.isValid()) {
+                console.error("Invalid reminder time:", reminderTime);
+                return;
+            }
+            
             // Schedule the job
             schedule.scheduleJob(reminderTime.toDate(), () => {
-                users.forEach(user => {
-                    // Uncomment the following line to send the email
-                    sendMatchEmail(user.email, matchData, user.userName, matchDay);
-                });
+                console.log("🚀 Reminder job triggered at: " + reminderTime.toDate());  // Log when job is triggered
+            
+                if (Array.isArray(users) && users.length > 0) {
+                    users.forEach(user => {
+                        console.log(`Mail is scheduled for user ID: ${user.userName}`);
+                        
+                        // Uncomment to send the actual email
+                        sendMatchEmail(user.email, matchData, user.userName, matchDay);
+                    });
+                } else {
+                    console.log("No users to send email to.");
+                }
             });
+            
+            
+            console.log("Job has been scheduled for:", reminderTime.toDate());
+        } catch (error) {
+            console.error("Error scheduling job:", error);
+        }
     } else {
         console.log("Condition not met: currentDate + 1 does not match startDate. No reminders scheduled.");
     }
 };
+
+
 
 
 
@@ -208,14 +236,14 @@ const fetchUsersWithLives = async () => {
 const scheduleRemindersForNextDay = async () => {
     try {
         const currentMatchday = await getCurrentMatchday();
-        const matches = await fetchMatchesByDate(currentMatchday + 1 );
+        const matches = await fetchMatchesByDate(currentMatchday);
         const users = await fetchUsersWithLives();
         if (users.length === 0) {
             console.log("No users to send reminders to.");
             return;
         }
 
-        await scheduleReminders(matches, users, currentMatchday + 1);
+        await scheduleReminders(matches, users, currentMatchday);
     } catch (error) {
         console.error("Error scheduling reminders:", error);
     }
