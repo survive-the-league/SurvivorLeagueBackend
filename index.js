@@ -62,10 +62,11 @@ const transporter = nodemailer.createTransport({
 
     // Function to send emails
     const sendMatchEmail = (userEmail, match, name, matchDay) => {
+        console.log("🚀 ~ sendMatchEmail ~ match:", match);
         const mailOptions = {
           from: process.env.EMAIL_USER,
           to: userEmail,
-          subject: `Match Reminder for ${matchDay} `,
+          subject: `Match Reminder for Matchweek ${matchDay} `,
           html: `
                     <html lang="en-US">
                 <head>
@@ -95,7 +96,7 @@ const transporter = nodemailer.createTransport({
                                 <tr>
                                     <td style="padding:0 35px">
                                     <p style="color:#18181b;font-size:15px;line-height:24px;margin:0;margin-bottom:20px">Hi ${name},</p>
-                                    <p style="color:#18181b;font-size:15px;line-height:24px;margin:0;margin-bottom:20px">The deadline to make a selection for Matchweek <strong>${matchDay}</strong> is tomorrow at <strong>${moment(match.firstMatch).tz('America/New_York')}</strong>. don't forget to make your pick.</p>
+                                    <p style="color:#18181b;font-size:15px;line-height:24px;margin:0;margin-bottom:20px">The deadline to make a selection for Matchweek <strong>${matchDay}</strong> is tomorrow at <strong>${moment.utc(match).tz('America/New_York').format('hh:mm A z')}</strong>. don't forget to make your pick.</p>
                                     <p style="color:#18181b;font-size:15px;line-height:24px;margin:0;margin-bottom:20px">To make your selections, please log in to your account using the button below:</p>
                                     <div style="text-align:center;">
                                     <a href="${process.env.FRONT_END_WEBSITE_URL}" style="background:#5460f3;text-decoration:none!important;display:inline-block;font-weight:600;margin-top:10px;color:#fff !important;text-transform:uppercase;font-size:18px;padding:15px 60px;display:inline-block;border-radius:50px;margin-bottom:25px;text-align:center;cursor:pointer;">Login </a>
@@ -161,45 +162,44 @@ const transporter = nodemailer.createTransport({
 
 const scheduleReminders = async (matchData, users, matchDay) => {
     const { startDate, firstMatch } = matchData;
+    console.log("🚀 ~ scheduleReminders ~ startDate:", startDate);
+    console.log("🚀 ~ scheduleReminders ~ firstMatch:", moment(firstMatch).format("DD-MM-YYYY hh:mm A z"),firstMatch);
     
     // Get the current date and add one day in EST
     const currentDatePlusOne = moment().tz('America/New_York').add(1, 'days').format('YYYY-MM-DD');
+    console.log("🚀 ~ scheduleReminders ~ currentDatePlusOne:", currentDatePlusOne);
     
     // Check if currentDate + 1 matches startDate
     if (currentDatePlusOne === startDate) {
-        console.log("Condition met: currentDate + 1 matches startDate.");
+        console.log("✅ Condition met: Scheduling reminder.");
         
         // Calculate the reminder time (24 hours before firstMatch) in EST
-        const reminderTime = moment(firstMatch).tz('America/New_York').subtract(1, 'days');
-        
-        try {
-            // Check if reminderTime is valid
-            if (!reminderTime.isValid()) {
-                console.error("Invalid reminder time:", reminderTime);
-                return;
-            }
+        const reminderTime = moment.utc(firstMatch).tz('America/New_York').subtract(1, 'days');
+        console.log("🚀 ~ scheduleReminders ~ reminderTime (EST):", reminderTime.format());
+
+        const reminderDate = reminderTime.toDate();
+        console.log("🚀 ~ scheduleReminders ~ Final Reminder Date:", reminderDate);
+
+
+        if (reminderDate <= new Date()) {
+            console.error("❌ Error: Reminder time is in the past. Skipping job scheduling.");
+            return;
+        }
             
             // Schedule the job
-            schedule.scheduleJob(reminderTime.toDate(), () => {
-                console.log("🚀 Reminder job triggered at: " + reminderTime.toDate());  // Log when job is triggered
-            
+            schedule.scheduleJob(reminderDate, () => {
+                console.log("🚀 Reminder job triggered at:", new Date());
+    
                 if (Array.isArray(users) && users.length > 0) {
                     users.forEach(user => {
-                        console.log(`Mail is scheduled for user ID: ${user.userName}`);
-                        
-                        // Uncomment to send the actual email
-                        sendMatchEmail(user.email, matchData, user.userName, matchDay);
+                        console.log(`📧 Mail is scheduled for user: ${user.userName}`);
+                        sendMatchEmail(user.email, firstMatch, user.userName, matchDay);
                     });
                 } else {
-                    console.log("No users to send email to.");
+                    console.log("⚠️ No users to send email to.");
                 }
             });
-            
-            
-            console.log("Job has been scheduled for:", reminderTime.toDate());
-        } catch (error) {
-            console.error("Error scheduling job:", error);
-        }
+        
     } else {
         console.log("Condition not met: currentDate + 1 does not match startDate. No reminders scheduled.");
     }
