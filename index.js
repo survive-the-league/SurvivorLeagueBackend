@@ -64,7 +64,7 @@ const transporter = nodemailer.createTransport({
     const sendMatchEmail = (userEmail, match, name, matchDay) => {
         console.log("🚀 ~ sendMatchEmail ~ match:", match);
         const mailOptions = {
-          from: process.env.EMAIL_USER,
+          from: process.env.EMAIL,
           to: userEmail,
           subject: `Match Reminder for Matchweek ${matchDay} `,
           html: `
@@ -161,34 +161,35 @@ const transporter = nodemailer.createTransport({
 
 
 const scheduleReminders = async (matchData, users, matchDay) => {
-    const { startDate, firstMatch } = matchData;
-    console.log("🚀 ~ scheduleReminders ~ startDate:", startDate);
-    console.log("🚀 ~ scheduleReminders ~ firstMatch:", moment(firstMatch).format("DD-MM-YYYY hh:mm A z"),firstMatch);
+    const { firstMatch } = matchData;
+    const firstMatchTimeInEST = moment(firstMatch).tz('America/New_York')
+    const currentDateTimeInEST = moment().tz('America/New_York')
+    const firstMatchDateinEST = moment(firstMatch).tz('America/New_York').startOf("day")
+    const currentDateInEST = moment().tz('America/New_York').startOf('day');
+    const currentDatePlusOne = currentDateInEST.clone().add(1, 'days');
     
-    // Get the current date and add one day in EST
-    const currentDatePlusOne = moment().tz('America/New_York').add(1, 'days').format('YYYY-MM-DD');
-    console.log("🚀 ~ scheduleReminders ~ currentDatePlusOne:", currentDatePlusOne);
-    
-    // Check if currentDate + 1 matches startDate
-    if (currentDatePlusOne === startDate) {
+    // Check if currentDate + 1 matches startDate   
+    if (currentDatePlusOne.isSame(firstMatchDateinEST, "day")) {
         console.log("✅ Condition met: Scheduling reminder.");
         
         // Calculate the reminder time (24 hours before firstMatch) in EST
-        const reminderTime = moment.utc(firstMatch).tz('America/New_York').subtract(1, 'days');
-        console.log("🚀 ~ scheduleReminders ~ reminderTime (EST):", reminderTime.format());
-
-        const reminderDate = reminderTime.toDate();
-        console.log("🚀 ~ scheduleReminders ~ Final Reminder Date:", reminderDate);
+        const reminderTime = firstMatchTimeInEST.clone().subtract(1, 'days');
+        console.log("🚀 ~ scheduleReminders ~ reminderTime (EST):", reminderTime);
 
 
-        if (reminderDate <= new Date()) {
+        
+        if (reminderTime.isAfter(currentDateTimeInEST)) {
             console.error("❌ Error: Reminder time is in the past. Skipping job scheduling.");
             return;
         }
-            
+        
+        const reminderDate = new Date(reminderTime);
+        console.log("🚀 ~ scheduleReminders ~ reminderDate:", reminderDate);
+        
+        console.log("📌 Scheduled Jobs:", Object.keys(schedule.scheduledJobs));
             // Schedule the job
             schedule.scheduleJob(reminderDate, () => {
-                console.log("🚀 Reminder job triggered at:", new Date());
+                console.log("🚀 Reminder job triggered at:", moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'));
     
                 if (Array.isArray(users) && users.length > 0) {
                     users.forEach(user => {
