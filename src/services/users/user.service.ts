@@ -1,4 +1,4 @@
-import { User } from '../../models/types';
+import { User } from '../../interfaces/matchDay.interface';
 import { db } from '../../config/firebase';
 
 export class UserService {

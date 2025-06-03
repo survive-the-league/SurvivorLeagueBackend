@@ -1,18 +1,29 @@
-import { Router } from 'express';
-import { login, register } from '../../controllers/auth/auth.controller';
+import { Router } from "express";
+import {
+  login,
+  register,
+  loginWithGoogle,
+  logout,
+  verifyToken,
+} from "../../controllers/auth/auth.controller";
 
 const router = Router();
 
 // Login
-router.post('/login', login);
+router.post("/login", login);
 
 // Registro
-router.post('/register', register);
+router.post("/register", register);
 
-//TODO: Renew token
-//router.post('/renew-token', renewToken);
+// Google Login
+router.post("/google", loginWithGoogle);
+
+router.post("/logout", logout);
+
+// Verify Token
+router.get("/verify", verifyToken);
 
 // TODO: Reset password
 //router.post('/reset-password', resetPassword);
 
-export default router; 
+export default router;
