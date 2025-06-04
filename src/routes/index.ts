@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import authRoutes from './auth/auth.routes';
 import userRoutes from './users/user.routes';
+import leagueRoutes from './leagues/league.routes';
 //import matchRoutes from './matches/';
 //import predictionRoutes from './predictions/prediction.routes';
 
@@ -11,6 +12,9 @@ router.use('/auth', authRoutes);
 
 // Rutas de usuarios
 router.use('/users', userRoutes);
+
+// Rutas de ligas
+router.use('/leagues', leagueRoutes);
 
 // Rutas de partidos
 //router.use('/matches', matchRoutes);
