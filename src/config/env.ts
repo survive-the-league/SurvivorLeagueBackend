@@ -17,6 +17,12 @@ export const env = {
     apiKey: process.env.FIREBASE_API_KEY
   },
   
+  jwt: {
+    secret: process.env.JWT_SECRET,
+    expiresIn: process.env.JWT_EXPIRES_IN || '24h',
+    refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d'
+  },
+  
   server: {
     port: process.env.PORT || 3000,
     nodeEnv: process.env.NODE_ENV || 'development'
@@ -28,7 +34,8 @@ const requiredEnvVars = [
   'FIREBASE_PRIVATE_KEY_ID',
   'FIREBASE_PRIVATE_KEY',
   'FIREBASE_CLIENT_EMAIL',
-  'FIREBASE_API_KEY'
+  'FIREBASE_API_KEY',
+  'JWT_SECRET'
 ];
 
 for (const envVar of requiredEnvVars) {

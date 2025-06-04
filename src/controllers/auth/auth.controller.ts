@@ -36,11 +36,11 @@ export const register = async (
     }
 
     const { email, password, username } = registerDto!;
-    const user = await AuthService.register(email, password, username);
+    const result = await AuthService.register(email, password, username);
     res.status(201).json({
       ok: true,
       message: "User registered successfully",
-      user,
+      result,
     });
   } catch (error) {
     console.error("Error en registro:", error);
@@ -52,7 +52,7 @@ export const register = async (
   }
 };
 
-export const logout = async (req: Request, res: Response): Promise<void> => {
+export const verifyToken = async (req: Request, res: Response): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -61,32 +61,53 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
     }
 
     const token = authHeader.split('Bearer ')[1];
-    await AuthService.logout(token);
+    const result = await AuthService.verifyToken(token);
     
-    res.status(200).json({ ok: true, message: "Logged out successfully" });
+    if (!result.isValid) {
+      res.status(401).json({ ok: false, error: 'Invalid token' });
+      return;
+    }
+
+    res.status(200).json({ 
+      ok: true, 
+      message: 'Token is valid',
+      user: result.user 
+    });
   } catch (error) {
-    console.error("Error en logout:", error);
+    console.error("Error verifying token:", error);
     res.status(500).json({
       ok: false,
-      error: "Error en el proceso de logout",
+      error: "Error verifying token",
       details: error instanceof Error ? error.message : "Unknown error",
     });
   }
 };
 
-export const resetPassword = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const refreshToken = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email } = req.body;
-    await AuthService.resetPassword(email);
-    res.json({ ok: true, message: "Password reset email sent" });
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      res.status(401).json({ ok: false, error: 'No token provided' });
+      return;
+    }
+
+    const refreshToken = authHeader.split('Bearer ')[1];
+    if (!refreshToken) {
+      res.status(400).json({ ok: false, error: 'Refresh token is required' });
+      return;
+    }
+
+    const result = await AuthService.refreshToken(refreshToken);
+    res.status(200).json({ 
+      ok: true, 
+      message: 'Tokens refreshed successfully',
+      result 
+    });
   } catch (error) {
-    console.error("Error al resetear contraseña:", error);
+    console.error("Error refreshing token:", error);
     res.status(500).json({
       ok: false,
-      error: "Error al resetear la contraseña",
+      error: "Error refreshing token",
       details: error instanceof Error ? error.message : "Unknown error",
     });
   }
@@ -108,38 +129,6 @@ export const loginWithGoogle = async (req: Request, res: Response): Promise<void
     res.status(500).json({
       ok: false,
       error: "Error in Google authentication",
-      details: error instanceof Error ? error.message : "Unknown error",
-    });
-  }
-};
-
-export const verifyToken = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      res.status(401).json({ ok: false, error: 'No token provided' });
-      return;
-    }
-
-    const token = authHeader.split('Bearer ')[1];
-    const result = await AuthService.verifyToken(token);
-    
-    
-    if (!result.isValid) {
-      res.status(401).json({ ok: false, error: 'Invalid token' });
-      return;
-    }
-
-    res.status(200).json({ 
-      ok: true, 
-      message: 'Token is valid',
-      user: result.user 
-    });
-  } catch (error) {
-    console.error("Error verifying token:", error);
-    res.status(500).json({
-      ok: false,
-      error: "Error verifying token",
       details: error instanceof Error ? error.message : "Unknown error",
     });
   }
