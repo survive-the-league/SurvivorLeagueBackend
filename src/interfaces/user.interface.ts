@@ -5,4 +5,7 @@ export interface User {
   photoURL?: string | null;
   lives: number;
   predictions: string[];
+  password: string;
 }
+
+export interface UserWithoutPassword extends Omit<User, 'password'> {}

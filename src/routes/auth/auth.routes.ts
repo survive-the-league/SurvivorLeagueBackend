@@ -2,9 +2,9 @@ import { Router } from "express";
 import {
   login,
   register,
-  loginWithGoogle,
-  logout,
   verifyToken,
+  refreshToken,
+  loginWithGoogle
 } from "../../controllers/auth/auth.controller";
 
 const router = Router();
@@ -18,10 +18,8 @@ router.post("/register", register);
 // Google Login
 router.post("/google", loginWithGoogle);
 
-router.post("/logout", logout);
-
-// Verify Token
-router.get("/verify", verifyToken);
+// Refresh Token
+router.get("/refresh", refreshToken);
 
 // TODO: Reset password
 //router.post('/reset-password', resetPassword);

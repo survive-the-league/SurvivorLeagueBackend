@@ -1,10 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
-import * as admin from 'firebase-admin';
+import { JwtService } from '../services/auth/jwt.service';
 
 export interface AuthRequest extends Request {
   user?: {
     uid: string;
     email?: string;
+    displayName?: string;
   };
 }
 
@@ -24,10 +25,11 @@ export const authMiddleware = async (
     const token = authHeader.split('Bearer ')[1];
     
     try {
-      const decodedToken = await admin.auth().verifyIdToken(token);
+      const decodedToken = JwtService.verifyToken(token);
       req.user = {
         uid: decodedToken.uid,
-        email: decodedToken.email
+        email: decodedToken.email,
+        displayName: decodedToken.displayName
       };
       next();
     } catch (error) {
