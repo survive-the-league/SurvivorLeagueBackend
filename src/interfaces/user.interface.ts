@@ -3,7 +3,6 @@ export interface User {
   email: string;
   displayName?: string;
   photoURL?: string | null;
-  lives: number;
   predictions: string[];
   password: string;
 }

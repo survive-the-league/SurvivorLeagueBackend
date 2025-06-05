@@ -6,8 +6,6 @@ import { OAuth2Client } from "google-auth-library";
 import { env } from "../../config/env";
 
 export class AuthService {
-  private static readonly initialLives = 3;
-
   static async login(
     email: string,
     password: string
@@ -92,7 +90,6 @@ export class AuthService {
         email: email,
         displayName: username,
         password: hashedPassword,
-        lives: AuthService.initialLives,
         predictions: [],
       };
 
@@ -102,7 +99,6 @@ export class AuthService {
         displayName: newUser.displayName,
         hasPassword: !!newUser.password,
         passwordLength: newUser.password.length,
-        lives: newUser.lives,
       });
 
       await db.collection("users").doc(userId).set(newUser);
@@ -218,7 +214,6 @@ export class AuthService {
           email: email,
           displayName: displayName,
           photoURL: photoURL,
-          lives: AuthService.initialLives,
           predictions: [],
           password: "", // Usuarios de Google no tienen password
         };
