@@ -10,13 +10,20 @@ COPY package*.json ./
 RUN npm install
 
 ENV HOST=0.0.0.0
+ENV PORT=8080
 
 COPY . .
 
 # Compila el proyecto TypeScript y copia serviceAccountKey.json a dist/
 RUN npm run build
 
+# Verify the build output
+RUN ls -la dist/
+
 EXPOSE 8080
 
+# Add debugging
+ENV NODE_ENV=production
+
 # command to run the application
-CMD ["npm", "start"]
+CMD ["node", "dist/index.js"]
