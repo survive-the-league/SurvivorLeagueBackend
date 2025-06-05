@@ -53,5 +53,4 @@ jobs:
             --set-env-vars="FIREBASE_CLIENT_CERT_URL=${{ secrets.FIREBASE_CLIENT_CERT_URL }}" \
             --set-env-vars="FIREBASE_API_KEY=${{ secrets.FIREBASE_API_KEY }}" \
             --set-env-vars="JWT_SECRET=${{ secrets.JWT_SECRET }}" \
-            --set-env-vars="NODE_ENV=production" \
-            --set-env-vars="PORT=8080"
+            --set-env-vars="NODE_ENV=production"
