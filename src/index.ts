@@ -21,6 +21,6 @@ app.get('/', (req: Request, res: Response) => {
 });
 
 // Iniciar servidor
-app.listen(env.server.port, () => {
+app.listen(env.server.port || 8000, () => {
   console.log(`Server is running on port ${env.server.port}`);
 }); 
